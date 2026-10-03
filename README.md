@@ -1,79 +1,81 @@
 # Folder Size Pro
 
-Ứng dụng Windows đo dung lượng **chính xác từng byte** của ổ đĩa, thư mục và file — và **giải thích được** mọi chênh lệch với Explorer, `chkdsk` và số "Used" của ổ.
+[Tiếng Việt](README.vi.md)
 
-- Giao diện: `FolderSizePro.exe` (WPF, giao diện sáng/tối theo Windows, tiếng Việt / English)
-- Dòng lệnh: `fsp.exe` (cùng lõi đo với giao diện → cùng đường dẫn cho cùng con số)
-- Không telemetry, không tự cập nhật, không dịch vụ nền, không gửi gì ra mạng. Chỉ **đọc** metadata, không đọc nội dung file.
+A Windows app that measures the storage used by drives, folders and files **down to the byte**, and **explains** every difference from Explorer, `chkdsk` and the drive's "Used" figure.
 
-## Vì sao con số này đáng tin
+- GUI: `FolderSizePro.exe` (WPF, follows the Windows light/dark theme, English / Vietnamese)
+- Command line: `fsp.exe` (same measuring core as the GUI, so the same path gives the same numbers)
+- No telemetry, no auto-update, no background service, nothing sent over the network. It only **reads** metadata and never reads file contents.
 
-Mọi số đều theo các **quy ước đo** cố định (xem `use-cases.md`, mục Q1–Q10):
+## Why the numbers can be trusted
+
+Every number follows fixed **measurement rules** (see `use-cases.md`, Q1–Q10):
 
 | | |
 |---|---|
-| **Hai con số song đôi** | *Kích thước* (logical) và *Trên đĩa* (cluster thật: làm tròn cluster, trừ phần nén NTFS / sparse / CompactOS) |
-| **Liên kết cứng** | một file thực chỉ tính **một lần** (chủ = đường dẫn nhỏ nhất) → WinSxS và tổng cả ổ không bao giờ vượt "Used" |
-| **Reparse point** | junction / symlink / mount point **không đi theo** → không đếm trùng, không lặp vô hạn |
-| **File đám mây** (OneDrive…) | chỉ đọc thuộc tính, **không bao giờ** làm file bị tải xuống; chưa tải = 0 trên đĩa |
-| **ADS** | được cộng vào file chủ (bắt buộc để đúng với file CompactOS) |
-| **File nhỏ thường trú trong MFT** | 0 cluster, tính riêng — không đếm đôi với `$MFT` |
-| **Đường dẫn dài** (> 260), tên lạ | đo được (`\\?\`) |
-| **Đối chiếu ổ đĩa** | chia "Used" thành *đã đo* + *NTFS metadata* + *pagefile…* + *Thùng rác* + *System Volume Information* + **chưa giải thích** — phần cuối không bị giấu |
-| **Mốc thời gian** | mọi kết quả ghi rõ quét lúc nào |
+| **Two numbers side by side** | *Size* (logical) and *On disk* (real clusters: rounded to the cluster, minus NTFS compression / sparse ranges / CompactOS savings) |
+| **Hard links** | a file is counted **once** (owner = the smallest path), so WinSxS and drive totals never exceed "Used" |
+| **Reparse points** | junctions / symlinks / mount points are **not followed**: no double counting, no infinite loops |
+| **Cloud files** (OneDrive…) | only attributes are read, so files are **never** downloaded; online-only files are 0 on disk |
+| **ADS** | added to the owning file (required to get CompactOS files right) |
+| **Small files resident in the MFT** | 0 clusters, tracked separately, not double-counted with `$MFT` |
+| **Long paths** (> 260), unusual names | measured (`\\?\`) |
+| **Volume reconciliation** | splits "Used" into *measured* + *NTFS metadata* + *pagefile…* + *Recycle Bin* + *System Volume Information* + **unexplained**; the last row is never hidden |
+| **Timestamps** | every result records when it was scanned |
 
-Kích thước trong *danh sách thư mục* của Windows có thể **cũ** với hard link và bằng **0** với file CompactOS — nên chế độ mặc định mở từng file (chỉ mức thuộc tính) để lấy số thật. Chế độ "Quét nhanh" bỏ bước này và luôn mang nhãn **KÉM CHÍNH XÁC**.
+Sizes in Windows *directory listings* can be **stale** for hard links and **0** for CompactOS files, so the default mode opens each file (attributes only) to get the real numbers. "Fast scan" skips this step and is always labelled **LESS ACCURATE**.
 
-## Chạy
+## Running
 
-- **Giao diện:** mở `FolderSizePro.exe` → chọn ổ ở bên trái, "Chọn thư mục…", gõ đường dẫn rồi Enter, hoặc kéo-thả thư mục vào cửa sổ.
-- **Quyền Administrator** (nút "Chạy với quyền Admin", qua hộp UAC của Windows): đo thêm vùng bị chặn (`System Volume Information`…) và dùng **quét MFT** (cả ổ trong vài chục giây) cho ổ NTFS.
-- **Dòng lệnh:**
+- **GUI:** open `FolderSizePro.exe`, then pick a drive on the left, use "Pick a folder or drive to scan", type a path and press Enter, or drag a folder onto the window.
+- **Administrator** ("Run as Administrator" button, through the Windows UAC prompt): also measures blocked areas (`System Volume Information`…) and enables **MFT scan** on NTFS drives (a whole drive in seconds).
+- **Command line:**
 
 ```text
 fsp scan D:\Data --depth 2 --top 20
 fsp scan D:\ --json --out d.json --save d.fsp
 fsp reconcile D:
-fsp compare cu.fsp moi.fsp
+fsp compare old.fsp new.fsp
 ```
 
-Mã thoát: `0` đầy đủ · `1` có mục không truy cập được · `2` đối số/đường dẫn sai · `3` huỷ/dở dang · `4` cần Administrator.
+Exit codes: `0` complete · `1` some items inaccessible · `2` bad argument/path · `3` cancelled/partial · `4` Administrator required.
 
-## Tính năng
+## Features
 
-Cây thư mục · Treemap · Loại file · Top lớn nhất · Đối chiếu ổ · Tìm/lọc (tên, đuôi, cỡ, ngày, thuộc tính, regex) · Chi tiết (số byte chính xác, liên kết cứng, ADS, chủ sở hữu, đích của liên kết) · Quét lại một nhánh · Snapshot `.fsp` + **so sánh** hai snapshot · Xuất HTML / CSV / JSON · Theo dõi trực tiếp thay đổi · Đưa vào Thùng rác (hộp xác nhận nói thật: *giải phóng ngay 0 B*, *sau khi dọn Thùng rác X*, đã trừ hard link còn ở nơi khác).
+Folder tree · Treemap · File types · Largest files · Volume reconciliation · Search/filter (name, extension, size, date, attributes, regex) · Details (exact byte counts, hard links, ADS, owner, link target) · Rescan a branch · `.fsp` snapshots + **compare** two snapshots · Export HTML / CSV / JSON · Live change tracking · Move to Recycle Bin (the confirmation tells the truth: *frees 0 B now*, *X after emptying the Recycle Bin*, minus hard links that live elsewhere).
 
-## An toàn
+## Safety
 
-- App **không xoá vĩnh viễn**. Chỉ "vào Thùng rác", và từ chối trước khi gọi nếu Thùng rác bị tắt, đầy, ổ không có Thùng rác, hoặc đường dẫn quá dài (khi đó Windows sẽ xoá thẳng).
-- Chặn xoá: gốc ổ, `Windows` (cả vùng lõi System32/WinSxS…), `Program Files`, `ProgramData`, `Users`, hồ sơ hiện tại, `System Volume Information`, `$Recycle.Bin`, file hệ thống, junction/mount point/symlink-thư mục — kể cả khi chạy Administrator.
-- File của app (cài đặt, log, phiên) chỉ ghi vào `%LOCALAPPDATA%\FolderSizePro`, không bao giờ vào ổ đang đo.
+- The app **never deletes permanently**. It only moves items to the Recycle Bin, and refuses up front if the Recycle Bin is disabled or full, the drive has no Recycle Bin, or the path is too long (Windows would delete outright in those cases).
+- Deletion is blocked for: drive roots, `Windows` (including System32/WinSxS…), `Program Files`, `ProgramData`, `Users`, the current profile, `System Volume Information`, `$Recycle.Bin`, system files, and junctions/mount points/directory symlinks, even when running as Administrator.
+- The app's own files (settings, log, session) are written only to `%LOCALAPPDATA%\FolderSizePro`, never to the drive being measured.
 
-## Kiểm chứng
+## Verification
 
-`tools\FspVerify` chạy máy quét **thật** trên bộ file mẫu (hard link, junction vòng, đường dẫn dài, nén, sparse, ADS, thư mục bị chặn quyền, file đổi liên tục…) và in số thật cạnh nguồn độc lập (`FSCTL_GET_RETRIEVAL_POINTERS`, `FindFirstStream`, PowerShell). Kết quả nằm trong `gap-analysis.md`.
-Chế độ MFT cần Administrator: chạy `tools\verify-mft.ps1` trong PowerShell Administrator.
+`tools\FspVerify` runs the **real** scanner over sample files (hard links, junction loops, long paths, compression, sparse files, ADS, permission-denied folders, files changing during the scan…) and prints the real numbers next to independent sources (`FSCTL_GET_RETRIEVAL_POINTERS`, `FindFirstStream`, PowerShell). Results are in `gap-analysis.md` (Vietnamese).
+MFT mode needs Administrator: run `tools\verify-mft.ps1` from an elevated PowerShell.
 
-## Giới hạn đã biết
+## Known limitations
 
-- Chế độ MFT đọc ảnh chụp `$MFT` trên đĩa; thay đổi mới nhất chưa được NTFS ghi xuống có thể chưa thấy.
-- Thư mục đám mây chưa tải danh sách (`RECALL_ON_OPEN`) **không được liệt kê** (liệt kê sẽ kích hoạt tải) — hiện là "chưa tải danh sách".
-- Menu chuột phải trên Windows 11 nằm trong "Show more options".
-- ADS trên **thư mục** không được tính (hiếm gặp).
-- Ngoài phạm vi: tìm file trùng, dọn rác tự động, lập lịch, đọc nội dung file, nhiều tab, driver/dịch vụ.
+- MFT mode reads the on-disk image of `$MFT`; the most recent changes not yet flushed by NTFS may be missing.
+- Cloud folders whose listing has not been downloaded (`RECALL_ON_OPEN`) are **not listed** (listing them would trigger a download); they show as "listing not downloaded".
+- On Windows 11 the context-menu entry is under "Show more options".
+- ADS on **folders** are not counted (rare).
+- Out of scope: duplicate finding, automatic cleanup, scheduling, reading file contents, multiple tabs, drivers/services.
 
 ## Build
 
 ```text
 dotnet build FolderSizePro.slnx -c Release
-powershell scripts\publish.ps1          # zip portable
-powershell scripts\build-installer.ps1  # bộ cài (cần Inno Setup 6)
+powershell scripts\publish.ps1          # portable zip
+powershell scripts\build-installer.ps1  # installer (needs Inno Setup 6)
 ```
 
-## Tải về
+## Download
 
-Bộ cài và bản portable ở trang [Releases](https://github.com/nguyennhuanhle/folder-size-pro/releases). Bản build chưa ký số nên Windows SmartScreen có thể cảnh báo lần đầu chạy ("More info" → "Run anyway").
+The installer and portable build are on the [Releases](https://github.com/nguyennhuanhle/folder-size-pro/releases) page. The build is not code-signed, so Windows SmartScreen may warn on first run ("More info" → "Run anyway").
 
-## Giấy phép
+## License
 
 [MIT](LICENSE)

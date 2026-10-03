@@ -18,6 +18,8 @@ dotnet publish (Join-Path $root "src\FolderSizePro.Cli\FolderSizePro.Cli.csproj"
 if ($LASTEXITCODE -ne 0) { throw "publish fsp thất bại" }
 
 Copy-Item (Join-Path $root "README.md") $out
+Copy-Item (Join-Path $root "README.vi.md") $out
+Copy-Item (Join-Path $root "LICENSE") $out
 Copy-Item (Join-Path $root "use-cases.md") $out
 
 $zip = Join-Path $deliver "FolderSizePro-$Version-win-x64.zip"
