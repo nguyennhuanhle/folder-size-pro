@@ -1,0 +1,6 @@
+bin/
+obj/
+_fixtures/
+_deliverables/
+publish/
+*.user

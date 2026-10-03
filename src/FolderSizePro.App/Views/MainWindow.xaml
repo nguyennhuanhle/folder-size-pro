@@ -1,0 +1,511 @@
+<Window x:Class="FolderSizePro.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="clr-namespace:FolderSizePro.App"
+        xmlns:c="clr-namespace:FolderSizePro.App.Controls"
+        Title="Folder Size Pro" Icon="pack://application:,,,/Assets/app.ico" Width="1320" Height="820" MinWidth="980" MinHeight="560"
+        AllowDrop="True" WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ============ Thanh công cụ ============ -->
+        <Border Grid.Row="0" Padding="12,10" Background="{DynamicResource LayerFillColorDefaultBrush}" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Command="{Binding BrowseCommand}" Margin="0,0,8,0" Padding="12,6" ToolTip="{app:T 'Chọn thư mục để quét (hoặc kéo-thả vào cửa sổ)|Pick a folder to scan (or drag-drop onto the window)'}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE838;" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBlock Text="{app:T 'Chọn thư mục…|Pick folder…'}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <StackPanel Grid.Column="1">
+                    <ComboBox x:Name="PathBox" IsEditable="True" Text="{Binding PathText, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding RecentPaths}"
+                              Padding="8,6" ToolTip="{app:T 'Gõ / dán đường dẫn (nhiều đường dẫn cách nhau bằng dấu |) rồi nhấn Enter|Type / paste a path (separate several with |) then press Enter'}" />
+                    <TextBlock Text="{Binding PathError}" Foreground="IndianRed" Margin="2,3,0,0" FontSize="12" Visibility="{Binding HasPathError, Converter={StaticResource BoolVis}}" TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Top">
+                    <Button Command="{Binding StartCommand}" Style="{DynamicResource AccentButtonStyle}" Padding="16,6" Margin="0,0,6,0" Visibility="{Binding IsScanning, Converter={StaticResource InvBoolVis}}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE768;" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <TextBlock Text="{app:T 'Quét|Scan'}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding PauseResumeCommand}" Padding="12,6" Margin="0,0,6,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolVis}}">
+                        <TextBlock Text="{Binding PauseResumeText}" />
+                    </Button>
+                    <Button Command="{Binding StopCommand}" Padding="12,6" Margin="0,0,6,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolVis}}">
+                        <TextBlock Text="{app:T 'Dừng|Stop'}" />
+                    </Button>
+                    <Button x:Name="RescanBtn" Command="{Binding RescanBranchCommand}" Padding="10,6" Margin="0,0,6,0" ToolTip="{app:T 'Quét lại riêng thư mục đang chọn (UC-17)|Rescan only the selected folder'}">
+                        <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE72C;" FontSize="14" />
+                    </Button>
+                    <Button x:Name="DeleteBtn" Command="{Binding DeleteCommand}" Padding="10,6" Margin="0,0,6,0" ToolTip="{app:T 'Đưa mục đang chọn vào Thùng rác (không xoá vĩnh viễn)|Move the selection to the Recycle Bin (never permanent)'}">
+                        <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE74D;" FontSize="14" />
+                    </Button>
+                </StackPanel>
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Top">
+                    <Button x:Name="SnapBtn" Padding="10,6" Margin="0,0,6,0" Click="OnSnapshotMenu" ToolTip="{app:T 'Snapshot: lưu / mở / so sánh|Snapshot: save / open / compare'}">
+                        <StackPanel Orientation="Horizontal"><TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE74E;" Margin="0,0,6,0" VerticalAlignment="Center" /><TextBlock Text="Snapshot" VerticalAlignment="Center" /></StackPanel>
+                    </Button>
+                    <Button x:Name="ExportBtn" Padding="10,6" Margin="0,0,6,0" Click="OnExportMenu" ToolTip="{app:T 'Xuất báo cáo HTML / CSV / JSON|Export HTML / CSV / JSON report'}">
+                        <StackPanel Orientation="Horizontal"><TextBlock FontFamily="{StaticResource IconFont}" Text="&#xEDE1;" Margin="0,0,6,0" VerticalAlignment="Center" /><TextBlock Text="{app:T 'Xuất|Export'}" VerticalAlignment="Center" /></StackPanel>
+                    </Button>
+                    <Button Command="{Binding ElevateCommand}" Padding="10,6" Margin="0,0,6,0" Visibility="{Binding IsAdmin, Converter={StaticResource InvBoolVis}}" ToolTip="{app:T 'Khởi động lại với quyền Administrator để đo thêm vùng bị chặn và quét MFT nhanh (UAC)|Restart as Administrator to measure protected areas and use fast MFT scan (UAC)'}">
+                        <StackPanel Orientation="Horizontal"><TextBlock FontFamily="{StaticResource IconFont}" Text="&#xEA18;" Margin="0,0,6,0" VerticalAlignment="Center" /><TextBlock Text="{app:T 'Chạy với quyền Admin|Run as Admin'}" VerticalAlignment="Center" /></StackPanel>
+                    </Button>
+                    <Border Visibility="{Binding IsAdmin, Converter={StaticResource BoolVis}}" Background="#2216A34A" BorderBrush="#16A34A" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,6,0" VerticalAlignment="Center">
+                        <TextBlock Text="Administrator" Foreground="#16A34A" FontSize="12" FontWeight="SemiBold" />
+                    </Border>
+                    <Button x:Name="SettingsBtn" Padding="10,6" Click="OnSettings" ToolTip="{app:T 'Cài đặt|Settings'}">
+                        <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE713;" FontSize="14" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ============ Nội dung ============ -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250" MinWidth="190" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="360" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="330" MinWidth="220" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Trái: ổ đĩa -->
+            <DockPanel Grid.Column="0" Margin="12,10,6,10">
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <Button DockPanel.Dock="Right" Command="{Binding RefreshDrivesCommand}" Padding="6,2" ToolTip="{app:T 'Làm mới danh sách ổ|Refresh drives'}"><TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE72C;" /></Button>
+                    <TextBlock Text="{app:T 'Ổ đĩa|Drives'}" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" Margin="0" />
+                </DockPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding Drives}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Command="{Binding DataContext.ScanDriveCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Stretch" Padding="10,8" Margin="0,0,0,6"
+                                            ToolTip="{app:T 'Bấm để quét cả ổ|Click to scan the whole drive'}">
+                                        <StackPanel>
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Left" FontFamily="{StaticResource IconFont}" Text="{Binding Glyph}" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding Sub}" Style="{StaticResource Muted}" FontSize="11" Margin="26,0,0,4" />
+                                            <ProgressBar Value="{Binding Fraction, Mode=OneWay}" Maximum="1" Height="5" Margin="0,0,0,3">
+                                                <ProgressBar.Style>
+                                                    <Style TargetType="ProgressBar" BasedOn="{StaticResource {x:Type ProgressBar}}">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsCritical}" Value="True"><Setter Property="Foreground" Value="IndianRed" /></DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ProgressBar.Style>
+                                            </ProgressBar>
+                                            <TextBlock Text="{Binding UsageText}" Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{app:T 'Gần đây|Recent'}" Style="{StaticResource SectionTitle}" Margin="0,10,0,6" />
+                        <ListBox ItemsSource="{Binding RecentPaths}" BorderThickness="0" Background="Transparent" MouseDoubleClick="OnRecentDoubleClick" MaxHeight="220" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ToolTip="{app:T 'Bấm đúp để quét lại|Double-click to rescan'}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate><TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" FontSize="12" ToolTip="{Binding}" /></DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" Background="Transparent" />
+
+            <!-- Giữa: banner + tab -->
+            <DockPanel Grid.Column="2" Margin="0,10,0,10">
+                <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Banners}" Margin="0,0,0,6">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding Level, Converter={StaticResource BannerBg}}" BorderBrush="{Binding Level, Converter={StaticResource BannerBd}}" BorderThickness="3,0,0,0" CornerRadius="3" Padding="10,7" Margin="0,0,0,4">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="{Binding ActionText}" Padding="10,3" Margin="10,0,0,0" Click="OnBannerAction" Tag="{Binding}" Visibility="{Binding ActionText, Converter={StaticResource NullVis}}" />
+                                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Grid>
+                    <!-- Trạng thái trống -->
+                    <Border Visibility="{Binding IsEmptyState, Converter={StaticResource BoolVis}}" Background="Transparent" Panel.ZIndex="5">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
+                            <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE8B7;" FontSize="54" HorizontalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Text="{app:T 'Đo dung lượng chính xác từng byte|Measure storage down to the exact byte'}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,10,0,6" />
+                            <TextBlock Text="{app:T 'Chọn một ổ đĩa bên trái, bấm “Chọn thư mục…”, gõ đường dẫn rồi Enter, hoặc kéo-thả thư mục vào cửa sổ.|Pick a drive on the left, click “Pick folder…”, type a path and press Enter, or drag-drop a folder onto the window.'}"
+                                       TextWrapping="Wrap" TextAlignment="Center" Style="{StaticResource Muted}" />
+                            <TextBlock Text="{app:T 'Mỗi số đều kèm Kích thước và Trên đĩa (theo cluster), hard link chỉ tính một lần, file đám mây không bị tải xuống.|Every figure shows Size and On disk (by cluster), hard links are counted once, cloud files are never downloaded.'}"
+                                       TextWrapping="Wrap" TextAlignment="Center" Style="{StaticResource Muted}" Margin="0,10,0,0" FontSize="12" />
+                        </StackPanel>
+                    </Border>
+
+                    <TabControl x:Name="Tabs" SelectionChanged="OnTabChanged">
+                        <TabItem Header="{app:T 'Cây thư mục|Folders'}" Tag="tree">
+                            <DockPanel Margin="0,8,0,0">
+                                <Border DockPanel.Dock="Top" Margin="0,0,0,6">
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <Button DockPanel.Dock="Right" Content="{app:T 'Xoá lọc|Clear'}" Click="OnClearFilter" Margin="6,0,0,0" Padding="10,4" />
+                                            <ToggleButton DockPanel.Dock="Right" IsChecked="{Binding FilterPanelOpen}" Margin="6,0,0,0" Padding="10,4" Content="{app:T 'Bộ lọc nâng cao|Advanced filters'}" />
+                                            <TextBox x:Name="FilterBox" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" Padding="8,5" ToolTip="{app:T 'Tìm theo tên, hỗ trợ * và ?, vd: *.mp4 hoặc backup*|Search by name, supports * and ?, e.g. *.mp4 or backup*'}" />
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding FilterError}" Foreground="IndianRed" FontSize="12" Margin="2,3,0,0" Visibility="{Binding HasFilterError, Converter={StaticResource BoolVis}}" />
+                                        <Border Visibility="{Binding FilterPanelOpen, Converter={StaticResource BoolVis}}" Margin="0,6,0,0" Padding="10" CornerRadius="4" Background="{DynamicResource LayerFillColorDefaultBrush}" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                                    <CheckBox Content="{app:T 'Dùng biểu thức chính quy (regex)|Use regular expression'}" IsChecked="{Binding FilterRegex}" />
+                                                    <TextBlock Text="{app:T 'Đuôi file (vd: mp4, mkv)|Extensions (e.g. mp4, mkv)'}" Style="{StaticResource Muted}" Margin="0,8,0,2" FontSize="12" />
+                                                    <TextBox Text="{Binding FilterExt, UpdateSourceTrigger=PropertyChanged}" />
+                                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                        <RadioButton Content="{app:T 'Trên đĩa|On disk'}" IsChecked="{Binding FilterOnDisk}" GroupName="basis" Margin="0,0,12,0" />
+                                                        <RadioButton Content="{app:T 'Kích thước|Size'}" IsChecked="{Binding FilterOnDisk, Converter={StaticResource BoolNot}}" GroupName="basis" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                                    <TextBlock Text="{app:T 'Kích thước từ … đến (vd: 100 MB, 2 GiB)|Size from … to (e.g. 100 MB, 2 GiB)'}" Style="{StaticResource Muted}" FontSize="12" Margin="0,0,0,2" />
+                                                    <DockPanel><TextBox Text="{Binding FilterMax, UpdateSourceTrigger=PropertyChanged}" Width="110" DockPanel.Dock="Right" /><TextBlock Text=" … " DockPanel.Dock="Right" VerticalAlignment="Center" /><TextBox Text="{Binding FilterMin, UpdateSourceTrigger=PropertyChanged}" /></DockPanel>
+                                                    <TextBlock Text="{app:T 'Ngày sửa từ … đến|Modified from … to'}" Style="{StaticResource Muted}" FontSize="12" Margin="0,8,0,2" />
+                                                    <DockPanel><DatePicker SelectedDate="{Binding FilterBefore}" Width="130" DockPanel.Dock="Right" /><TextBlock Text=" … " DockPanel.Dock="Right" VerticalAlignment="Center" /><DatePicker SelectedDate="{Binding FilterAfter}" /></DockPanel>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <WrapPanel>
+                                                        <CheckBox Content="{app:T 'Chỉ file|Files only'}" IsChecked="{Binding FilterFilesOnly}" Margin="0,0,10,4" />
+                                                        <CheckBox Content="{app:T 'Chỉ thư mục|Folders only'}" IsChecked="{Binding FilterDirsOnly}" Margin="0,0,10,4" />
+                                                        <CheckBox Content="{app:T 'Ẩn|Hidden'}" IsChecked="{Binding FlagHidden}" Margin="0,0,10,4" />
+                                                        <CheckBox Content="{app:T 'Hệ thống|System'}" IsChecked="{Binding FlagSystem}" Margin="0,0,10,4" />
+                                                        <CheckBox Content="{app:T 'Đám mây|Cloud'}" IsChecked="{Binding FlagCloud}" Margin="0,0,10,4" />
+                                                        <CheckBox Content="{app:T 'Nén|Compressed'}" IsChecked="{Binding FlagCompressed}" Margin="0,0,10,4" />
+                                                        <CheckBox Content="{app:T 'Liên kết cứng|Hard link'}" IsChecked="{Binding FlagHardLink}" Margin="0,0,10,4" />
+                                                        <CheckBox Content="ADS" IsChecked="{Binding FlagAds}" Margin="0,0,10,4" />
+                                                        <CheckBox Content="Reparse" IsChecked="{Binding FlagReparse}" Margin="0,0,10,4" />
+                                                        <CheckBox Content="{app:T 'Không truy cập được|Access denied'}" IsChecked="{Binding FlagDenied}" Margin="0,0,10,4" />
+                                                    </WrapPanel>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Kết quả tìm -->
+                                <DockPanel Visibility="{Binding IsFilterActive, Converter={StaticResource BoolVis}}">
+                                    <TextBlock DockPanel.Dock="Top" Text="{Binding SearchSummary}" Style="{StaticResource Muted}" Margin="2,0,0,4" />
+                                    <ListView x:Name="SearchList" ItemsSource="{Binding SearchResults}" ItemContainerStyle="{StaticResource StretchItem}" MouseDoubleClick="OnSearchDoubleClick" SelectionChanged="OnSearchSelected">
+                                        <ListView.View>
+                                            <GridView>
+                                                <GridViewColumn Header="{app:T 'Tên|Name'}" Width="220"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                                <GridViewColumn Header="{app:T 'Đường dẫn|Path'}" Width="380"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}" Style="{StaticResource Muted}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                                <GridViewColumn Header="{app:T 'Kích thước|Size'}" Width="100"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Logical}" Style="{StaticResource NumCell}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                                <GridViewColumn Header="{app:T 'Trên đĩa|On disk'}" Width="100"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Allocated}" Style="{StaticResource NumCell}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                                <GridViewColumn Header="{app:T 'Ngày sửa|Modified'}" Width="130"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Modified}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                            </GridView>
+                                        </ListView.View>
+                                    </ListView>
+                                </DockPanel>
+
+                                <!-- Cây -->
+                                <ListView x:Name="TreeList" ItemsSource="{Binding Rows}" SelectionMode="Extended" SelectionChanged="OnTreeSelected" KeyDown="OnTreeKeyDown" MouseDoubleClick="OnTreeDoubleClick"
+                                          Visibility="{Binding ShowTree, Converter={StaticResource BoolVis}}" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                          ContextMenuOpening="OnTreeContextMenu" GridViewColumnHeader.Click="OnTreeHeaderClick">
+                                    <ListView.ItemContainerStyle>
+                                        <Style TargetType="ListViewItem" BasedOn="{StaticResource StretchItem}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Severity}" Value="2"><Setter Property="Foreground" Value="IndianRed" /></DataTrigger>
+                                                <DataTrigger Binding="{Binding Severity}" Value="1"><Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" /></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ListView.ItemContainerStyle>
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridViewColumn Width="430">
+                                                <GridViewColumn.Header><GridViewColumnHeader Tag="Name" Content="{app:T 'Tên|Name'}" /></GridViewColumn.Header>
+                                                <GridViewColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Border Width="{Binding IndentWidth}" />
+                                                            <TextBlock FontFamily="{StaticResource IconFont}" Text="{Binding ExpanderGlyph}" Width="18" FontSize="10" VerticalAlignment="Center" TextAlignment="Center" MouseLeftButtonDown="OnExpanderClick" Cursor="Hand" />
+                                                            <TextBlock FontFamily="{StaticResource IconFont}" Text="{Binding Glyph}" Margin="0,0,6,0" VerticalAlignment="Center" Foreground="#E8B400" />
+                                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding Badges}" Margin="10,0,0,0" FontSize="11" FontStyle="Italic" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </GridViewColumn.CellTemplate>
+                                            </GridViewColumn>
+                                            <GridViewColumn Width="105">
+                                                <GridViewColumn.Header><GridViewColumnHeader Tag="Logical" Content="{app:T 'Kích thước|Size'}" /></GridViewColumn.Header>
+                                                <GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding LogicalText}" Style="{StaticResource NumCell}" ToolTip="{Binding LogicalExact}" /></DataTemplate></GridViewColumn.CellTemplate>
+                                            </GridViewColumn>
+                                            <GridViewColumn Width="105">
+                                                <GridViewColumn.Header><GridViewColumnHeader Tag="Allocated" Content="{app:T 'Trên đĩa|On disk'}" /></GridViewColumn.Header>
+                                                <GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding AllocatedText}" Style="{StaticResource NumCell}" FontWeight="SemiBold" ToolTip="{Binding AllocatedExact}" /></DataTemplate></GridViewColumn.CellTemplate>
+                                            </GridViewColumn>
+                                            <GridViewColumn Width="120" Header="% ">
+                                                <GridViewColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Grid>
+                                                            <ProgressBar Value="{Binding PercentValue, Mode=OneWay}" Maximum="1" Height="14" Opacity="0.55" />
+                                                            <TextBlock Text="{Binding PercentText}" HorizontalAlignment="Center" FontSize="11" VerticalAlignment="Center" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </GridViewColumn.CellTemplate>
+                                            </GridViewColumn>
+                                            <GridViewColumn Width="90">
+                                                <GridViewColumn.Header><GridViewColumnHeader Tag="Files" Content="{app:T 'File|Files'}" /></GridViewColumn.Header>
+                                                <GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding FilesText}" Style="{StaticResource NumCell}" /></DataTemplate></GridViewColumn.CellTemplate>
+                                            </GridViewColumn>
+                                            <GridViewColumn Width="80">
+                                                <GridViewColumn.Header><GridViewColumnHeader Tag="Dirs" Content="{app:T 'Thư mục|Folders'}" /></GridViewColumn.Header>
+                                                <GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding DirsText}" Style="{StaticResource NumCell}" /></DataTemplate></GridViewColumn.CellTemplate>
+                                            </GridViewColumn>
+                                            <GridViewColumn Width="130">
+                                                <GridViewColumn.Header><GridViewColumnHeader Tag="Modified" Content="{app:T 'Ngày sửa|Modified'}" /></GridViewColumn.Header>
+                                                <GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding ModifiedText}" /></DataTemplate></GridViewColumn.CellTemplate>
+                                            </GridViewColumn>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                            </DockPanel>
+                        </TabItem>
+
+                        <TabItem Header="Treemap" Tag="treemap">
+                            <DockPanel Margin="0,8,0,0">
+                                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                                    <Button DockPanel.Dock="Left" Content="{app:T '↑ Lên một cấp|↑ Up one level'}" Click="OnTreemapUp" Padding="10,4" Margin="0,0,8,0" />
+                                    <ToggleButton DockPanel.Dock="Right" x:Name="TmLogical" Content="{app:T 'Theo Kích thước|By Size'}" Click="OnTreemapBasis" Padding="10,4" Margin="8,0,0,0" />
+                                    <TextBlock x:Name="TreemapCrumb" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Style="{StaticResource Muted}" />
+                                </DockPanel>
+                                <Border BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1" Background="#202B3A">
+                                    <c:TreemapView x:Name="Treemap" />
+                                </Border>
+                            </DockPanel>
+                        </TabItem>
+
+                        <TabItem Header="{app:T 'Loại file|File types'}" Tag="types">
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <DockPanel Grid.Column="0" Margin="0,0,10,0">
+                                    <TextBlock DockPanel.Dock="Top" Text="{app:T 'Theo nhóm (Trên đĩa)|By group (on disk)'}" Style="{StaticResource SectionTitle}" />
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding Groups}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,0,0,10">
+                                                        <Grid.RowDefinitions><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                                                        <DockPanel>
+                                                            <TextBlock DockPanel.Dock="Right" Text="{Binding Fraction, StringFormat='{}{0:P0}'}" Style="{StaticResource Muted}" Width="44" TextAlignment="Right" />
+                                                            <TextBlock DockPanel.Dock="Right" Text="{Binding Allocated}" FontWeight="SemiBold" Margin="0,0,8,0" />
+                                                            <Border Width="10" Height="10" CornerRadius="2" Background="{Binding Color}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding Label}" />
+                                                        </DockPanel>
+                                                        <ProgressBar Grid.Row="1" Value="{Binding Fraction, Mode=OneWay}" Maximum="1" Height="8" Margin="18,3,0,2" Foreground="{Binding Color}" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </DockPanel>
+                                <DockPanel Grid.Column="1">
+                                    <TextBlock DockPanel.Dock="Top" Text="{app:T 'Theo đuôi file|By extension'}" Style="{StaticResource SectionTitle}" />
+                                    <ListView ItemsSource="{Binding Extensions}" ItemContainerStyle="{StaticResource StretchItem}">
+                                        <ListView.View>
+                                            <GridView>
+                                                <GridViewColumn Header="{app:T 'Đuôi|Ext'}" Width="74" DisplayMemberBinding="{Binding Extension}" />
+                                                <GridViewColumn Header="{app:T 'Nhóm|Group'}" Width="96" DisplayMemberBinding="{Binding Group}" />
+                                                <GridViewColumn Header="{app:T 'File|Files'}" Width="62"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Count, StringFormat='{}{0:N0}'}" Style="{StaticResource NumCell}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                                <GridViewColumn Header="{app:T 'Kích thước|Size'}" Width="95"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Logical}" Style="{StaticResource NumCell}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                                <GridViewColumn Header="{app:T 'Trên đĩa|On disk'}" Width="95"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Allocated}" Style="{StaticResource NumCell}" FontWeight="SemiBold" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                            </GridView>
+                                        </ListView.View>
+                                    </ListView>
+                                </DockPanel>
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="{app:T 'Lớn nhất|Largest'}" Tag="top">
+                            <Grid Margin="0,8,0,0">
+                                <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="10" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Top" Text="{app:T 'File lớn nhất (theo Trên đĩa) — bấm đúp để chỉ ra trong cây|Largest files (by on disk) — double-click to reveal in tree'}" Style="{StaticResource SectionTitle}" />
+                                    <ListView ItemsSource="{Binding TopFiles}" ItemContainerStyle="{StaticResource StretchItem}" MouseDoubleClick="OnTopFileDoubleClick">
+                                        <ListView.View>
+                                            <GridView>
+                                                <GridViewColumn Header="{app:T 'Tên|Name'}" Width="210"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                                <GridViewColumn Header="{app:T 'Đường dẫn|Path'}" Width="360"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}" Style="{StaticResource Muted}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                                <GridViewColumn Header="{app:T 'Kích thước|Size'}" Width="95"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Logical}" Style="{StaticResource NumCell}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                                <GridViewColumn Header="{app:T 'Trên đĩa|On disk'}" Width="95"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Allocated}" Style="{StaticResource NumCell}" FontWeight="SemiBold" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                                <GridViewColumn Header="{app:T 'Ngày sửa|Modified'}" Width="130" DisplayMemberBinding="{Binding Modified}" />
+                                            </GridView>
+                                        </ListView.View>
+                                    </ListView>
+                                </DockPanel>
+                                <DockPanel Grid.Row="2">
+                                    <TextBlock DockPanel.Dock="Top" Text="{app:T 'Thư mục chứa nhiều dữ liệu nhất (chỉ file trực tiếp, tránh lặp cha/con)|Folders holding the most data (direct files only, no parent/child repeats)'}" Style="{StaticResource SectionTitle}" />
+                                    <ListView ItemsSource="{Binding TopDirs}" ItemContainerStyle="{StaticResource StretchItem}" MouseDoubleClick="OnTopDirDoubleClick">
+                                        <ListView.View>
+                                            <GridView>
+                                                <GridViewColumn Header="{app:T 'Đường dẫn|Path'}" Width="560"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                                <GridViewColumn Header="{app:T 'Kích thước|Size'}" Width="95"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding DirectLogical}" Style="{StaticResource NumCell}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                                <GridViewColumn Header="{app:T 'Trên đĩa|On disk'}" Width="95"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding DirectAllocated}" Style="{StaticResource NumCell}" FontWeight="SemiBold" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                                <GridViewColumn Header="" Width="130"><GridViewColumn.CellTemplate><DataTemplate><ProgressBar Value="{Binding Fraction, Mode=OneWay}" Maximum="1" Height="8" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                            </GridView>
+                                        </ListView.View>
+                                    </ListView>
+                                </DockPanel>
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="{app:T 'Đối chiếu ổ|Reconcile'}" Tag="reconcile">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="{app:T 'Chia số “Used” của ổ thành các phần và nói thẳng phần chưa giải thích được (Q9). Chỉ có khi quét cả ổ.|Splits the volume’s “Used” into parts and states plainly what is unexplained (Q9). Available only when scanning a whole drive.'}"
+                                               Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                    <ItemsControl ItemsSource="{Binding ReconcileRows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,3">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="160" /><ColumnDefinition Width="1.4*" /></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Label}" TextWrapping="Wrap" FontWeight="{Binding Level, Converter={StaticResource LevelWeight}}" Foreground="{Binding Level, Converter={StaticResource LevelBrush}}" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Value}" Style="{StaticResource NumCell}" FontWeight="SemiBold" Foreground="{Binding Level, Converter={StaticResource LevelBrush}}" Margin="0,0,12,0" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding Detail}" TextWrapping="Wrap" FontSize="12" Style="{StaticResource Muted}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="{app:T 'Kiểm tra nhất quán tự động|Automatic consistency checks'}" Style="{StaticResource SectionTitle}" Margin="0,16,0,6" />
+                                    <ItemsControl ItemsSource="{Binding ConsistencyRows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <DockPanel Margin="0,2">
+                                                    <Grid DockPanel.Dock="Left" Width="22" VerticalAlignment="Top">
+                                                        <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE73E;" Foreground="SeaGreen" Visibility="{Binding Ok, Converter={StaticResource BoolVis}}" />
+                                                        <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE711;" Foreground="IndianRed" Visibility="{Binding Ok, Converter={StaticResource InvBoolVis}}" />
+                                                    </Grid>
+                                                    <StackPanel><TextBlock Text="{Binding Name}" TextWrapping="Wrap" /><TextBlock Text="{Binding Detail}" Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" /></StackPanel>
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="{app:T 'Vấn đề|Issues'}" Tag="issues">
+                            <ListView ItemsSource="{Binding Issues}" ItemContainerStyle="{StaticResource StretchItem}" Margin="0,8,0,0">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="{app:T 'Loại|Kind'}" Width="170"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Kind}" Foreground="{Binding Level, Converter={StaticResource LevelBrush}}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                        <GridViewColumn Header="{app:T 'Đường dẫn|Path'}" Width="420"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                        <GridViewColumn Header="{app:T 'Chi tiết|Details'}" Width="380"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Message}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Message}" Style="{StaticResource Muted}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </TabItem>
+
+                        <TabItem Header="{app:T 'So sánh|Compare'}" Tag="compare">
+                            <DockPanel Margin="0,8,0,0">
+                                <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                                    <TextBlock Text="A (cũ)" VerticalAlignment="Center" Margin="0,0,8,6" />
+                                    <TextBlock Grid.Column="1" x:Name="CmpA" Style="{StaticResource Muted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,6" />
+                                    <Button Grid.Column="2" Content="{app:T 'Mở file…|Open file…'}" Click="OnPickA" Margin="0,0,6,6" />
+                                    <Button Grid.Column="3" Content="{app:T 'Dùng kết quả hiện tại|Use current result'}" Click="OnUseA" Margin="0,0,0,6" />
+                                    <TextBlock Grid.Row="1" Text="B (mới)" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="CmpB" Style="{StaticResource Muted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+                                    <Button Grid.Row="1" Grid.Column="2" Content="{app:T 'Mở file…|Open file…'}" Click="OnPickB" Margin="0,0,6,0" />
+                                    <Button Grid.Row="1" Grid.Column="3" Content="{app:T 'Dùng kết quả hiện tại|Use current result'}" Click="OnUseB" />
+                                </Grid>
+                                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                                    <Button DockPanel.Dock="Left" Content="{app:T 'So sánh|Compare'}" Style="{DynamicResource AccentButtonStyle}" Click="OnRunCompare" Padding="16,5" Margin="0,0,10,0" />
+                                    <TextBlock Text="{Binding DiffSummary}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <ListView ItemsSource="{Binding DiffRows}" ItemContainerStyle="{StaticResource StretchItem}">
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridViewColumn Header="{app:T 'Trạng thái|Status'}" Width="90" DisplayMemberBinding="{Binding Status}" />
+                                            <GridViewColumn Header="Δ" Width="110"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Delta}" Style="{StaticResource NumCell}" FontWeight="SemiBold" Foreground="{Binding Direction, Converter={StaticResource DirBrush}}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                            <GridViewColumn Header="A" Width="95"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding A}" Style="{StaticResource NumCell}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                            <GridViewColumn Header="B" Width="95"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding B}" Style="{StaticResource NumCell}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                            <GridViewColumn Header="{app:T 'Đường dẫn|Path'}" Width="480"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}" /></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                            </DockPanel>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+            </DockPanel>
+            <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Center" Background="Transparent" />
+
+            <!-- Phải: chi tiết -->
+            <DockPanel Grid.Column="4" Margin="6,10,12,10">
+                <TextBlock DockPanel.Dock="Top" Text="{app:T 'Chi tiết|Details'}" Style="{StaticResource SectionTitle}" />
+                <TextBlock DockPanel.Dock="Top" Text="{app:T 'Chọn một mục để xem chi tiết.|Select an item to see details.'}" Style="{StaticResource Muted}" Visibility="{Binding HasDetails, Converter={StaticResource InvBoolVis}}" TextWrapping="Wrap" />
+                <ScrollViewer VerticalScrollBarVisibility="Auto" DataContext="{Binding Details}" Visibility="{Binding DataContext.HasDetails, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVis}}">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <ProgressBar IsIndeterminate="True" Height="3" Visibility="{Binding Loading, Converter={StaticResource BoolVis}}" Margin="0,0,0,6" />
+                        <TextBlock Text="{Binding Error}" Foreground="IndianRed" TextWrapping="Wrap" Visibility="{Binding HasError, Converter={StaticResource BoolVis}}" Margin="0,0,0,6" />
+                        <ItemsControl ItemsSource="{Binding Fields}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,0,0,7">
+                                        <TextBlock Text="{Binding Label}" Style="{StaticResource Muted}" FontSize="11" />
+                                        <TextBlock Text="{Binding Value}" TextWrapping="Wrap" IsHitTestVisible="True" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Visibility="{Binding HasLinks, Converter={StaticResource BoolVis}}" Margin="0,4,0,0">
+                            <TextBlock Text="{app:T 'Các đường dẫn khác của file này (liên kết cứng)|Other paths of this file (hard links)'}" Style="{StaticResource SectionTitle}" />
+                            <ItemsControl ItemsSource="{Binding Links}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" Margin="0,0,0,3" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                        </StackPanel>
+                        <StackPanel Visibility="{Binding HasStreams, Converter={StaticResource BoolVis}}" Margin="0,8,0,0">
+                            <TextBlock Text="{app:T 'Luồng dữ liệu phụ (ADS)|Alternate data streams (ADS)'}" Style="{StaticResource SectionTitle}" />
+                            <ItemsControl ItemsSource="{Binding Streams}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" Margin="0,0,0,3" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Grid>
+
+        <!-- ============ Thanh trạng thái ============ -->
+        <Border Grid.Row="2" Padding="12,6" Background="{DynamicResource LayerFillColorDefaultBrush}" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold" Margin="0,0,12,0" />
+                        <TextBlock Text="{Binding ProgressText}" Style="{StaticResource Muted}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding CurrentPathText}" Style="{StaticResource Muted}" FontSize="11" TextTrimming="CharacterEllipsis" Visibility="{Binding IsScanning, Converter={StaticResource BoolVis}}" />
+                    <TextBlock Text="{Binding TotalsText}" Visibility="{Binding IsScanning, Converter={StaticResource InvBoolVis}}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding ScanTimeText}" Style="{StaticResource Muted}" Margin="0,0,14,0" />
+                    <Border Visibility="{Binding IsApproximate, Converter={StaticResource BoolVis}}" Background="#33F59E0B" BorderBrush="#D97706" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,10,0">
+                        <TextBlock Text="{app:T 'KÉM CHÍNH XÁC|LESS ACCURATE'}" FontSize="11" FontWeight="SemiBold" />
+                    </Border>
+                    <TextBlock Text="{Binding ModeText}" Style="{StaticResource Muted}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
