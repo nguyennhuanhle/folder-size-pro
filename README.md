@@ -69,3 +69,11 @@ dotnet build FolderSizePro.slnx -c Release
 powershell scripts\publish.ps1          # zip portable
 powershell scripts\build-installer.ps1  # bộ cài (cần Inno Setup 6)
 ```
+
+## Tải về
+
+Bộ cài và bản portable ở trang [Releases](https://github.com/nguyennhuanhle/folder-size-pro/releases). Bản build chưa ký số nên Windows SmartScreen có thể cảnh báo lần đầu chạy ("More info" → "Run anyway").
+
+## Giấy phép
+
+[MIT](LICENSE)
